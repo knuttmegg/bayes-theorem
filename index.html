@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bayes' theorem — interactive</title>
+  <style>
+    :root {
+      --bg: #101214;
+      --surface: #181b1f;
+      --elevated: #1e2227;
+      --text: #ececec;
+      --muted: #9a9a9a;
+      --faint: #6e6e6e;
+      --stroke: #2c3138;
+      --accent: #4c8bf5;
+      --green: #3dba8b;
+      --orange: #d89040;
+      --danger: #d46565;
+      --info: #5aa2e8;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 64px; }
+    h1 { font-size: 24px; font-weight: 590; margin: 0 0 8px; }
+    h2 { font-size: 18px; font-weight: 590; margin: 0 0 6px; }
+    p { margin: 0; color: var(--muted); }
+    .lede { max-width: 72ch; margin-bottom: 20px; }
+    code {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.92em;
+      background: var(--elevated);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .stats {
+      display: flex; flex-wrap: wrap; gap: 28px;
+      margin: 0 0 20px;
+    }
+    .stat .value { font-size: 22px; font-weight: 590; }
+    .stat .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .stat.up .value { color: var(--green); }
+    .stat.down .value { color: var(--danger); }
+    .stat.info .value { color: var(--info); }
+    .card {
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 16px 18px 18px;
+      margin-bottom: 24px;
+    }
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; color: var(--muted); margin-bottom: 14px;
+    }
+    .slider { margin-bottom: 16px; }
+    .slider-row {
+      display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+      font-size: 13px; margin-bottom: 6px;
+    }
+    .slider-row strong { font-weight: 590; }
+    .hint { font-size: 12px; color: var(--faint); margin-top: 4px; }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+      margin: 0;
+    }
+    .presets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+    .presets .lbl { font-size: 12px; color: var(--muted); }
+    button.pill {
+      appearance: none;
+      border: 1px solid var(--stroke);
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    button.pill[aria-pressed="true"] {
+      background: var(--elevated);
+      border-color: var(--accent);
+    }
+    button.pill:hover { border-color: var(--muted); }
+    .caption { font-size: 12px; color: var(--faint); margin: 0 0 10px; }
+    .chart-frame { width: 100%; overflow: hidden; }
+    svg { display: block; width: 100%; height: auto; }
+    .callout {
+      border: 1px solid var(--stroke);
+      border-left-width: 3px;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin: 0 0 24px;
+      background: var(--surface);
+    }
+    .callout strong { display: block; margin-bottom: 4px; font-size: 13px; }
+    .callout p { font-size: 13px; }
+    .callout.warn { border-left-color: var(--orange); }
+    .callout.ok { border-left-color: var(--green); }
+    .callout.info { border-left-color: var(--accent); }
+    .callout.neutral { border-left-color: var(--muted); }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--stroke); }
+    td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+    th { color: var(--muted); font-weight: 590; font-size: 12px; }
+    details { margin-top: 8px; }
+    details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+    details .body { margin-top: 10px; max-width: 72ch; }
+    details .body p + p { margin-top: 10px; }
+    .legend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--faint); margin-top: 8px; }
+    .legend-bar { display: flex; height: 8px; }
+    .legend-bar span { width: 22px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Bayes' theorem</h1>
+    <p class="lede">
+      Posterior odds equal prior odds times the likelihood ratio, raised to the
+      number of independent observations: <code>O(H|E) = O(H) × λⁿ</code>.
+      Probability is <code>P = O / (1 + O)</code>. The map from prior to posterior
+      is concave for confirming evidence (λ &gt; 1) and convex for disconfirming
+      evidence (λ &lt; 1).
+    </p>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <span>Prior, likelihood ratio, evidence strength</span>
+        <span id="geometry"></span>
+      </div>
+      <div class="slider">
+        <div class="slider-row">
+          <strong>Prior P(H)</strong>
+          <span id="priorLabel"></span>
+        </div>
+        <input id="prior" type="range" min="1" max="99" step="1" value="40" aria-label="Prior P(H)" />
+        <div class="hint">Base rate of the hypothesis before seeing the data.</div>
+      </div>
+      <div class="slider">
+        <div class="slider-row">
+          <strong>Likelihood ratio λ = P(E|H) / P(E|¬H)</strong>
+          <span id="lrLabel"></span>
+        </div>
+        <input id="logLR" type="range" min="-2" max="2" step="0.05" value="0.6" aria-label="Likelihood ratio" />
+        <div class="hint">Log-scaled from 1:100 against H to 100:1 for H. λ = 1 is uninformative.</div>
+      </div>
+      <div class="slider">
+        <div class="slider-row">
+          <strong>Evidence strength n</strong>
+          <span id="nLabel"></span>
+        </div>
+        <input id="nObs" type="range" min="0" max="8" step="1" value="1" aria-label="Evidence strength" />
+        <div class="hint">Independent i.i.d. observations. Effective likelihood ratio is λⁿ (n = 0 leaves the prior unchanged).</div>
+      </div>
+      <div class="presets">
+        <span class="lbl">Presets</span>
+        <button type="button" class="pill" data-preset="even">Even prior</button>
+        <button type="button" class="pill" data-preset="rare">Rare-event test</button>
+        <button type="button" class="pill" data-preset="confirm">High-prior confirm</button>
+        <button type="button" class="pill" data-preset="disconfirm">Disconfirming hit</button>
+      </div>
+    </div>
+
+    <h2>Posterior vs prior at current λⁿ</h2>
+    <p class="caption">
+      Identity dashed line is no-update (λ = 1). Faint curves are reference
+      likelihood ratios 0.1–10. Accent curve and point use the sliders.
+      Source: odds-form Bayes · P(H|E) = λⁿp / (λⁿp + 1 − p).
+    </p>
+    <div class="chart-frame" id="mainChart"></div>
+    <div id="callout"></div>
+
+    <div class="grid-2">
+      <div>
+        <h2>Posterior surface</h2>
+        <p class="caption">
+          Color is P(H | Eⁿ) after n observations at each (prior, λ) pair.
+          Click a cell to jump the sliders. Crosshair is the current setting.
+        </p>
+        <div class="chart-frame" id="heatmap"></div>
+        <div class="legend">
+          <span>0%</span>
+          <div class="legend-bar" id="legendBar"></div>
+          <span>100% posterior</span>
+        </div>
+      </div>
+      <div>
+        <h2>Sequential updating</h2>
+        <p class="caption" id="seqCaption"></p>
+        <div class="chart-frame" id="seqChart"></div>
+        <p class="caption">Horizontal axis: number of independent observations n. Vertical axis: probability (%).</p>
+      </div>
+    </div>
+
+    <h2>Odds arithmetic</h2>
+    <table>
+      <thead><tr><th>Quantity</th><th>Value</th></tr></thead>
+      <tbody id="oddsBody"></tbody>
+    </table>
+
+    <details>
+      <summary>Why the curve bends</summary>
+      <div class="body">
+        <p>
+          Write f(p) = λp / (λp + 1 − p). The second derivative has the sign of
+          1 − λ. Confirming evidence (λ &gt; 1) is concave in probability:
+          high priors sit on the flat top, so extra confirmation barely moves
+          P(H|E). Disconfirming evidence (λ &lt; 1) is convex: the bow below
+          the diagonal is why a 75% belief can collapse under a few contrary
+          observations even though each observation has a fixed bit-weight.
+        </p>
+        <p>
+          Thinking in log-odds restores linearity: each independent observation
+          adds n log₂ λ bits. The sliders separate the direction of the evidence
+          (λ) from how much of it you have (n).
+        </p>
+      </div>
+    </details>
+  </div>
+
+  <script>
+    (() => {
+      const PRESETS = {
+        even: { priorPct: 50, logLR: 0.6, n: 1 },
+        rare: { priorPct: 2, logLR: 1, n: 1 },
+        confirm: { priorPct: 88, logLR: 0.7, n: 1 },
+        disconfirm: { priorPct: 75, logLR: -0.85, n: 2 },
+      };
+      const FAMILY_LR = [0.1, 0.25, 0.5, 2, 4, 10];
+      const LOW = "#2a3038";
+      const HIGH = "#4c8bf5";
+
+      const els = {
+        prior: document.getElementById("prior"),
+        logLR: document.getElementById("logLR"),
+        nObs: document.getElementById("nObs"),
+        priorLabel: document.getElementById("priorLabel"),
+        lrLabel: document.getElementById("lrLabel"),
+        nLabel: document.getElementById("nLabel"),
+        geometry: document.getElementById("geometry"),
+        stats: document.getElementById("stats"),
+        mainChart: document.getElementById("mainChart"),
+        heatmap: document.getElementById("heatmap"),
+        seqChart: document.getElementById("seqChart"),
+        seqCaption: document.getElementById("seqCaption"),
+        callout: document.getElementById("callout"),
+        oddsBody: document.getElementById("oddsBody"),
+        legendBar: document.getElementById("legendBar"),
+      };
+
+      function clamp(x, lo, hi) { return Math.min(hi, Math.max(lo, x)); }
+      function bayes(prior, lr) {
+        const p = clamp(prior, 1e-6, 1 - 1e-6);
+        if (!Number.isFinite(lr) || lr <= 0) return p;
+        const num = lr * p;
+        return num / (num + (1 - p));
+      }
+      function odds(p) {
+        const x = clamp(p, 1e-6, 1 - 1e-6);
+        return x / (1 - x);
+      }
+      function formatPct(p, digits = 1) { return (p * 100).toFixed(digits) + "%"; }
+      function formatLR(lr) {
+        if (lr >= 1) return lr.toFixed(lr >= 10 ? 0 : 1) + " : 1";
+        const inv = 1 / lr;
+        return "1 : " + inv.toFixed(inv >= 10 ? 0 : 1);
+      }
+      function formatOdds(o) {
+        if (o >= 1) return o.toFixed(o >= 10 ? 1 : 2) + " : 1";
+        return "1 : " + (1 / o).toFixed(1 / o >= 10 ? 1 : 2);
+      }
+      function parseRgb(color) {
+        const hex = color.replace("#", "").slice(0, 6);
+        return [
+          parseInt(hex.slice(0, 2), 16),
+          parseInt(hex.slice(2, 4), 16),
+          parseInt(hex.slice(4, 6), 16),
+        ];
+      }
+      function mixRgb(a, b, t) {
+        const u = clamp(t, 0, 1);
+        const [ar, ag, ab] = parseRgb(a);
+        const [br, bg, bb] = parseRgb(b);
+        return `rgb(${Math.round(ar + (br - ar) * u)}, ${Math.round(ag + (bg - ag) * u)}, ${Math.round(ab + (bb - ab) * u)})`;
+      }
+      function pathFrom(xs, ys) {
+        return xs.map((x, i) => `${i ? "L" : "M"} ${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(" ");
+      }
+      function state() {
+        const priorPct = Number(els.prior.value);
+        const logLR = Number(els.logLR.value);
+        const n = Number(els.nObs.value);
+        const prior = clamp(priorPct / 100, 0.01, 0.99);
+        const lr = 10 ** logLR;
+        const effectiveLR = n === 0 ? 1 : lr ** n;
+        const post = bayes(prior, effectiveLR);
+        const bits = n === 0 ? 0 : n * Math.log2(lr);
+        return { priorPct, logLR, n, prior, lr, effectiveLR, post, bits, delta: post - prior };
+      }
+
+      function renderStats(s) {
+        const toneLR = s.effectiveLR > 1 ? "up" : s.effectiveLR < 1 ? "down" : "";
+        const toneD = s.delta > 0.002 ? "up" : s.delta < -0.002 ? "down" : "";
+        const toneB = s.bits > 0.05 ? "up" : s.bits < -0.05 ? "down" : "";
+        els.stats.innerHTML = [
+          ["Prior P(H)", formatPct(s.prior), ""],
+          ["Effective LR λⁿ", formatLR(s.effectiveLR), toneLR],
+          ["Posterior P(H | E)", formatPct(s.post), "info"],
+          ["Update vs prior", `${s.delta >= 0 ? "+" : ""}${(s.delta * 100).toFixed(1)} pp`, toneD],
+          ["Weight of evidence", `${s.bits >= 0 ? "+" : ""}${s.bits.toFixed(2)} bits`, toneB],
+        ].map(([label, value, cls]) =>
+          `<div class="stat ${cls}"><div class="value">${value}</div><div class="label">${label}</div></div>`
+        ).join("");
+      }
+
+      function renderMain(s) {
+        const W = 680, H = 400;
+        const m = { l: 48, r: 168, t: 20, b: 44 };
+        const iw = W - m.l - m.r, ih = H - m.t - m.b;
+        const xOf = (p) => m.l + p * iw;
+        const yOf = (q) => m.t + (1 - q) * ih;
+        const ticks = [0, 0.25, 0.5, 0.75, 1];
+        const confirming = s.effectiveLR > 1.02;
+        const disconfirming = s.effectiveLR < 0.98;
+        const samples = (lr, nPts) => {
+          const xs = [], ys = [];
+          for (let i = 0; i <= nPts; i++) {
+            const p = 0.01 + (0.98 * i) / nPts;
+            xs.push(xOf(p));
+            ys.push(yOf(bayes(p, lr)));
+          }
+          return pathFrom(xs, ys);
+        };
+        let grid = "";
+        ticks.forEach((t) => {
+          grid += `<line x1="${xOf(t)}" y1="${m.t}" x2="${xOf(t)}" y2="${m.t + ih}" stroke="#2c3138" />`;
+          grid += `<line x1="${m.l}" y1="${yOf(t)}" x2="${m.l + iw}" y2="${yOf(t)}" stroke="#2c3138" />`;
+        });
+        const family = FAMILY_LR.map((lr) =>
+          `<path d="${samples(lr, 36)}" fill="none" stroke="#6e6e6e" stroke-width="1" opacity="0.45" />`
+        ).join("");
+        const px = xOf(s.prior), py = yOf(s.post);
+        const tickLabels = ticks.map((t) => {
+          const lab = t === 0 || t === 1 ? String(t) : t.toFixed(2);
+          return `<text x="${xOf(t)}" y="${H - 14}" text-anchor="middle" fill="#6e6e6e" font-size="10">${lab}</text>
+            <text x="${m.l - 8}" y="${yOf(t) + 3}" text-anchor="end" fill="#6e6e6e" font-size="10">${lab}</text>`;
+        }).join("");
+        els.mainChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Posterior versus prior">
+          ${grid}
+          <line x1="${xOf(0)}" y1="${yOf(0)}" x2="${xOf(1)}" y2="${yOf(1)}" stroke="#9a9a9a" stroke-dasharray="5 4" />
+          ${family}
+          <path d="${samples(s.effectiveLR, 48)}" fill="none" stroke="#4c8bf5" stroke-width="2.4" />
+          <line x1="${px}" y1="${py}" x2="${px}" y2="${m.t + ih}" stroke="#9a9a9a" stroke-dasharray="3 3" />
+          <line x1="${m.l}" y1="${py}" x2="${px}" y2="${py}" stroke="#9a9a9a" stroke-dasharray="3 3" />
+          <circle cx="${px}" cy="${py}" r="6" fill="#4c8bf5" />
+          <circle cx="${px}" cy="${py}" r="2.5" fill="#101214" />
+          <line x1="${xOf(0.82)}" y1="${yOf(0.97)}" x2="${W - 12}" y2="38" stroke="#3dba8b" opacity="${confirming ? 1 : 0.35}" />
+          <text x="${W - 12}" y="34" text-anchor="end" fill="#3dba8b" font-size="11" font-weight="590" opacity="${confirming ? 1 : 0.4}">High-prior confirming evidence</text>
+          <text x="${W - 12}" y="48" text-anchor="end" fill="#9a9a9a" font-size="10" opacity="${confirming ? 1 : 0.4}">Concave — diminishing returns near 1</text>
+          <line x1="${xOf(0.58)}" y1="${yOf(bayes(0.58, 0.2))}" x2="${W - 12}" y2="${H - 78}" stroke="#d89040" opacity="${disconfirming ? 1 : 0.35}" />
+          <text x="${W - 12}" y="${H - 82}" text-anchor="end" fill="#d89040" font-size="11" font-weight="590" opacity="${disconfirming ? 1 : 0.4}">Convex response to</text>
+          <text x="${W - 12}" y="${H - 68}" text-anchor="end" fill="#d89040" font-size="11" font-weight="590" opacity="${disconfirming ? 1 : 0.4}">disconfirming evidence</text>
+          <text x="${W - 12}" y="${H - 54}" text-anchor="end" fill="#9a9a9a" font-size="10" opacity="${disconfirming ? 1 : 0.4}">Curve bows below the identity</text>
+          ${tickLabels}
+          <text x="${m.l + iw / 2}" y="${H - 2}" text-anchor="middle" fill="#9a9a9a" font-size="11">Prior P(H)</text>
+          <text x="14" y="${m.t + ih / 2}" text-anchor="middle" fill="#9a9a9a" font-size="11" transform="rotate(-90 14 ${m.t + ih / 2})">Posterior P(H | E)</text>
+          <text x="${m.l + 6}" y="${m.t + 12}" fill="#6e6e6e" font-size="10">Dashed: λ = 1 (no update)</text>
+        </svg>`;
+      }
+
+      function renderHeatmap(s) {
+        const W = 420, H = 320;
+        const m = { l: 56, r: 28, t: 12, b: 40 };
+        const cols = 25, rows = 21, logMin = -2, logMax = 2;
+        const cellW = (W - m.l - m.r) / cols;
+        const cellH = (H - m.t - m.b) / rows;
+        let cells = "";
+        for (let r = 0; r < rows; r++) {
+          const log = logMax - ((r + 0.5) / rows) * (logMax - logMin);
+          const baseLR = 10 ** log;
+          const eLR = s.n === 0 ? 1 : baseLR ** s.n;
+          for (let c = 0; c < cols; c++) {
+            const p = ((c + 0.5) / cols) * 0.98 + 0.01;
+            cells += `<rect x="${(m.l + c * cellW).toFixed(2)}" y="${(m.t + r * cellH).toFixed(2)}" width="${cellW + 0.4}" height="${cellH + 0.4}" fill="${mixRgb(LOW, HIGH, bayes(p, eLR))}" />`;
+          }
+        }
+        const cx = m.l + s.prior * (W - m.l - m.r);
+        const cy = m.t + ((logMax - s.logLR) / (logMax - logMin)) * (H - m.t - m.b);
+        const xTicks = [0, 0.25, 0.5, 0.75, 1].map((t) =>
+          `<text x="${m.l + t * (W - m.l - m.r)}" y="${H - 16}" text-anchor="middle" fill="#6e6e6e" font-size="10">${t === 0 || t === 1 ? t : t.toFixed(2)}</text>`
+        ).join("");
+        const yTicks = [
+          [2, "100:1"], [1, "10:1"], [0, "1:1"], [-1, "1:10"], [-2, "1:100"],
+        ].map(([log, label]) =>
+          `<text x="${m.l - 6}" y="${m.t + ((logMax - log) / (logMax - logMin)) * (H - m.t - m.b) + 3}" text-anchor="end" fill="#6e6e6e" font-size="10">${label}</text>`
+        ).join("");
+        els.heatmap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Posterior heatmap" style="cursor:crosshair">
+          ${cells}
+          <line x1="${cx}" y1="${m.t}" x2="${cx}" y2="${H - m.b}" stroke="#ececec" stroke-width="1.2" opacity="0.7" />
+          <line x1="${m.l}" y1="${cy}" x2="${W - m.r}" y2="${cy}" stroke="#ececec" stroke-width="1.2" opacity="0.7" />
+          <circle cx="${cx}" cy="${cy}" r="4" fill="#101214" stroke="#ececec" stroke-width="1.5" />
+          ${xTicks}${yTicks}
+          <text x="${m.l + (W - m.l - m.r) / 2}" y="${H - 4}" text-anchor="middle" fill="#9a9a9a" font-size="11">Prior P(H)</text>
+          <text x="12" y="${m.t + (H - m.t - m.b) / 2}" text-anchor="middle" fill="#9a9a9a" font-size="11" transform="rotate(-90 12 ${m.t + (H - m.t - m.b) / 2})">Likelihood ratio λ</text>
+        </svg>`;
+        const svg = els.heatmap.querySelector("svg");
+        svg.addEventListener("click", (e) => {
+          const bounds = svg.getBoundingClientRect();
+          const vx = ((e.clientX - bounds.left) / bounds.width) * W;
+          const vy = ((e.clientY - bounds.top) / bounds.height) * H;
+          const p = (vx - m.l) / (W - m.l - m.r);
+          const log = logMax - ((vy - m.t) / (H - m.t - m.b)) * (logMax - logMin);
+          if (p < 0.01 || p > 0.99 || log < logMin || log > logMax) return;
+          els.prior.value = String(Math.round(p * 100));
+          els.logLR.value = String(Math.round(log * 20) / 20);
+          render();
+        });
+      }
+
+      function renderSeq(s) {
+        const W = 420, H = 260;
+        const m = { l: 40, r: 16, t: 16, b: 36 };
+        const iw = W - m.l - m.r, ih = H - m.t - m.b;
+        const xOf = (n) => m.l + (n / 8) * iw;
+        const yOf = (pct) => m.t + (1 - pct / 100) * ih;
+        const postPts = [], priorPts = [];
+        for (let k = 0; k <= 8; k++) {
+          const e = k === 0 ? 1 : s.lr ** k;
+          postPts.push([xOf(k), yOf(bayes(s.prior, e) * 100)]);
+          priorPts.push([xOf(k), yOf(s.prior * 100)]);
+        }
+        const dPost = pathFrom(postPts.map((p) => p[0]), postPts.map((p) => p[1]));
+        const dPrior = pathFrom(priorPts.map((p) => p[0]), priorPts.map((p) => p[1]));
+        const yTicks = [0, 25, 50, 75, 100];
+        const grid = yTicks.map((t) =>
+          `<line x1="${m.l}" y1="${yOf(t)}" x2="${m.l + iw}" y2="${yOf(t)}" stroke="#2c3138" />
+           <text x="${m.l - 6}" y="${yOf(t) + 3}" text-anchor="end" fill="#6e6e6e" font-size="10">${t}</text>`
+        ).join("");
+        const xLabs = Array.from({ length: 9 }, (_, k) =>
+          `<text x="${xOf(k)}" y="${H - 12}" text-anchor="middle" fill="#6e6e6e" font-size="10">${k}</text>`
+        ).join("");
+        const nx = xOf(s.n), ny = yOf(s.post * 100);
+        els.seqChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Sequential updating">
+          ${grid}
+          <line x1="${m.l}" y1="${yOf(50)}" x2="${m.l + iw}" y2="${yOf(50)}" stroke="#6e6e6e" stroke-dasharray="4 3" />
+          <path d="${dPrior}" fill="none" stroke="#9a9a9a" stroke-width="1.5" />
+          <path d="${dPost}" fill="none" stroke="#5aa2e8" stroke-width="2.2" />
+          ${postPts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="2.5" fill="#5aa2e8" />`).join("")}
+          <circle cx="${nx}" cy="${ny}" r="5" fill="#4c8bf5" />
+          <circle cx="${nx}" cy="${ny}" r="2" fill="#101214" />
+          ${xLabs}
+          <text x="${m.l + iw / 2}" y="${H - 1}" text-anchor="middle" fill="#9a9a9a" font-size="11">Observations n</text>
+        </svg>`;
+        els.seqCaption.textContent =
+          `Posterior after n i.i.d. observations at the current prior and λ. You are at n = ${s.n}. Logistic in probability: concave while rising, convex while falling.`;
+      }
+
+      function renderCallout(s) {
+        let cls, title, body;
+        if (s.effectiveLR < 0.98) {
+          cls = "warn";
+          title = "Convex response to disconfirming evidence";
+          body = `For λⁿ &lt; 1 the prior-to-posterior map is convex: it bows below the identity, so a moderately high prior can fall sharply. Current prior ${formatPct(s.prior, 0)} collapses to ${formatPct(s.post)} — not a linear haircut in probability. Log-odds still move by a constant ${s.bits.toFixed(2)} bits per update; the convexity is an artifact of the probability scale.`;
+        } else if (s.prior >= 0.7 && s.effectiveLR > 1.02) {
+          cls = "ok";
+          title = "High-prior confirming evidence";
+          body = `You are already near certainty (${formatPct(s.prior, 0)}). Confirming evidence (λⁿ = ${formatLR(s.effectiveLR)}) only lifts the posterior by ${(s.delta * 100).toFixed(1)} pp, to ${formatPct(s.post)}, because the map is concave and pinned at 1. The same data still add ${s.bits.toFixed(2)} bits of log-odds — diminishing returns show up in probability, not in evidence weight.`;
+        } else if (s.effectiveLR > 1.02) {
+          cls = "info";
+          title = "Concave confirming update";
+          body = `λⁿ &gt; 1 pulls the posterior above the identity. The curve is concave, so the same likelihood ratio moves a mid prior more in probability points than a prior already close to 1. Try the High-prior confirm preset to see diminishing returns.`;
+        } else {
+          cls = "neutral";
+          title = "Uninformative evidence";
+          body = `Likelihood ratio near 1 leaves beliefs unchanged: posterior equals prior. Raise n or move λ away from 1:1 to see the geometry.`;
+        }
+        els.callout.innerHTML = `<div class="callout ${cls}"><strong>${title}</strong><p>${body}</p></div>`;
+      }
+
+      function renderOdds(s) {
+        const rows = [
+          ["Prior P(H)", formatPct(s.prior)],
+          ["Prior odds O(H)", formatOdds(odds(s.prior))],
+          ["Single-observation λ", formatLR(s.lr)],
+          ["Evidence strength n", String(s.n)],
+          ["Effective LR λⁿ", formatLR(s.effectiveLR)],
+          ["Weight of evidence n log₂ λ", `${s.bits.toFixed(2)} bits`],
+          ["Posterior odds O(H|E)", formatOdds(odds(s.post))],
+          ["Posterior P(H|E)", formatPct(s.post)],
+        ];
+        els.oddsBody.innerHTML = rows.map(([q, v]) => `<tr><td>${q}</td><td>${v}</td></tr>`).join("");
+      }
+
+      function renderPresets(s) {
+        document.querySelectorAll("[data-preset]").forEach((btn) => {
+          const p = PRESETS[btn.dataset.preset];
+          btn.setAttribute("aria-pressed", String(
+            p.priorPct === s.priorPct && Math.abs(p.logLR - s.logLR) < 0.02 && p.n === s.n
+          ));
+        });
+      }
+
+      function render() {
+        const s = state();
+        els.priorLabel.textContent = formatPct(s.prior, 0);
+        els.lrLabel.textContent = `${formatLR(s.lr)} ${s.lr >= 1 ? "confirming" : "disconfirming"}`;
+        els.nLabel.textContent = `${s.n} observation${s.n === 1 ? "" : "s"}`;
+        els.geometry.textContent = s.effectiveLR > 1.02 ? "concave" : s.effectiveLR < 0.98 ? "convex" : "linear";
+        renderStats(s);
+        renderMain(s);
+        renderHeatmap(s);
+        renderSeq(s);
+        renderCallout(s);
+        renderOdds(s);
+        renderPresets(s);
+      }
+
+      ["prior", "logLR", "nObs"].forEach((id) => {
+        els[id].addEventListener("input", render);
+      });
+      document.querySelectorAll("[data-preset]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const p = PRESETS[btn.dataset.preset];
+          els.prior.value = String(p.priorPct);
+          els.logLR.value = String(p.logLR);
+          els.nObs.value = String(p.n);
+          render();
+        });
+      });
+
+      els.legendBar.innerHTML = [0, 0.2, 0.4, 0.6, 0.8, 1]
+        .map((t) => `<span style="background:${mixRgb(LOW, HIGH, t)}"></span>`).join("");
+
+      render();
+    })();
+  </script>
+</body>
+</html>
