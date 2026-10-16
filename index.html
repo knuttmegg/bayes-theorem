@@ -25,7 +25,7 @@
       font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       line-height: 1.45;
     }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 64px; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 72px 20px 64px; }
     h1 { font-size: 24px; font-weight: 590; margin: 0 0 8px; }
     h2 { font-size: 18px; font-weight: 590; margin: 0 0 6px; }
     p { margin: 0; color: var(--muted); }
@@ -111,7 +111,6 @@
       gap: 24px;
       margin-bottom: 24px;
     }
-    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--stroke); }
     td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
@@ -123,17 +122,83 @@
     .legend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--faint); margin-top: 8px; }
     .legend-bar { display: flex; height: 8px; }
     .legend-bar span { width: 22px; }
+    .home-btn {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 12px 22px;
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      background: rgba(16, 18, 20, 0.92);
+      backdrop-filter: blur(8px);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 590;
+      letter-spacing: 0.02em;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    .home-btn:hover {
+      background: var(--elevated);
+      border-color: var(--info);
+      color: #fff;
+    }
+    /* mobile polish */
+
+    .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 0; }
+    .chart-frame { max-width: 100%; overflow-x: auto; }
+    html, body { overflow-x: hidden; }
+    @media (max-width: 800px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .wrap { padding: 64px 16px 48px; padding-right: 96px; /* clear fixed Home */ }
+      .home-btn {
+        top: 10px;
+        right: 10px;
+        min-height: 40px;
+        padding: 8px 14px;
+        font-size: 14px;
+      }
+      .card { padding: 14px; }
+      .card-head { flex-wrap: wrap; gap: 6px; }
+      .slider-row { flex-wrap: wrap; }
+      .stats { gap: 16px; }
+      h1 { font-size: 22px; padding-right: 4px; }
+    }
+    @media (max-width: 600px) {
+      .wrap { padding: 56px 12px 40px; padding-right: 88px; }
+      .home-btn {
+        top: 8px;
+        right: 8px;
+        min-height: 36px;
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+      .stat .value { font-size: 18px; }
+      table { font-size: 12px; }
+      th, td { padding: 6px 8px; }
+    }
+
+    .tl-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 18px; margin: 10px 0; }
+    .tl-controls label { display: block; }
+    .tl-controls input { width: 100%; }
   </style>
 </head>
 <body>
   <div class="wrap">
+    <a class="home-btn" href="/">← Home</a>
     <h1>Bayes' theorem</h1>
     <p class="lede">
       Posterior odds equal prior odds times the likelihood ratio, raised to the
       number of independent observations: <code>O(H|E) = O(H) × λⁿ</code>.
       Probability is <code>P = O / (1 + O)</code>. The map from prior to posterior
-      is concave for confirming evidence (λ &gt; 1) and convex for disconfirming
-      evidence (λ &lt; 1).
+      is concave for confirming evidence (λ > 1) and convex for disconfirming
+      evidence (λ < 1).
     </p>
 
     <div class="stats" id="stats"></div>
@@ -173,6 +238,8 @@
         <button type="button" class="pill" data-preset="rare">Rare-event test</button>
         <button type="button" class="pill" data-preset="confirm">High-prior confirm</button>
         <button type="button" class="pill" data-preset="disconfirm">Disconfirming hit</button>
+        <button type="button" class="pill" data-tl="m180" data-jump="1">Monthly updates over 15 years</button>
+        <button type="button" class="pill" data-tl="m24" data-jump="1">24 months (2 years)</button>
       </div>
     </div>
 
@@ -208,19 +275,21 @@
     </div>
 
     <h2>Odds arithmetic</h2>
+    <div class="table-wrap">
     <table>
       <thead><tr><th>Quantity</th><th>Value</th></tr></thead>
       <tbody id="oddsBody"></tbody>
     </table>
+    </div>
 
     <details>
       <summary>Why the curve bends</summary>
       <div class="body">
         <p>
           Write f(p) = λp / (λp + 1 − p). The second derivative has the sign of
-          1 − λ. Confirming evidence (λ &gt; 1) is concave in probability:
+          1 − λ. Confirming evidence (λ > 1) is concave in probability:
           high priors sit on the flat top, so extra confirmation barely moves
-          P(H|E). Disconfirming evidence (λ &lt; 1) is convex: the bow below
+          P(H|E). Disconfirming evidence (λ < 1) is convex: the bow below
           the diagonal is why a 75% belief can collapse under a few contrary
           observations even though each observation has a fixed bit-weight.
         </p>
@@ -231,6 +300,34 @@
         </p>
       </div>
     </details>
+
+    <h2 id="timeline">Monthly evidence paths</h2>
+    <p class="caption">
+      Odds-form updating, one update per month: confirming months multiply the odds by LR,
+      disconfirming months divide by LR. History runs to the dashed <strong>today</strong> line;
+      after it, two forward paths show mostly confirming vs mostly disconfirming evidence.
+    </p>
+    <div class="presets">
+      <span class="lbl">Views</span>
+      <button type="button" class="pill" data-tl="m180">Monthly updates over 15 years</button>
+      <button type="button" class="pill" data-tl="m24">24 months (2 years)</button>
+    </div>
+    <div class="tl-controls">
+      <label><span class="slider-row"><strong>Starting prior</strong><span id="tlPriorL"></span></span>
+        <input id="tlPrior" type="range" min="1" max="99" step="1" value="85" /></label>
+      <label><span class="slider-row"><strong>Likelihood ratio per month</strong><span id="tlLRL"></span></span>
+        <input id="tlLR" type="range" min="1.01" max="2" step="0.01" value="1.15" /></label>
+      <label><span class="slider-row"><strong>Monthly updates (history)</strong><span id="tlNL"></span></span>
+        <input id="tlN" type="range" min="6" max="240" step="1" value="180" /></label>
+      <label><span class="slider-row"><strong>Confirming share of history</strong><span id="tlMixL"></span></span>
+        <input id="tlMix" type="range" min="0" max="1" step="0.01" value="0.53" /></label>
+      <label><span class="slider-row"><strong>Forward paths: confirming share</strong><span id="tlFwdMixL"></span></span>
+        <input id="tlFwdMix" type="range" min="0.5" max="1" step="0.01" value="0.75" /></label>
+      <label><span class="slider-row"><strong>Months forward from today</strong><span id="tlHL"></span></span>
+        <input id="tlH" type="range" min="6" max="120" step="1" value="36" /></label>
+    </div>
+    <div class="chart-frame" id="tlChart"></div>
+    <p class="caption" id="tlStats"></p>
   </div>
 
   <script>
@@ -475,7 +572,7 @@
         if (s.effectiveLR < 0.98) {
           cls = "warn";
           title = "Convex response to disconfirming evidence";
-          body = `For λⁿ &lt; 1 the prior-to-posterior map is convex: it bows below the identity, so a moderately high prior can fall sharply. Current prior ${formatPct(s.prior, 0)} collapses to ${formatPct(s.post)} — not a linear haircut in probability. Log-odds still move by a constant ${s.bits.toFixed(2)} bits per update; the convexity is an artifact of the probability scale.`;
+          body = `For λⁿ < 1 the prior-to-posterior map is convex: it bows below the identity, so a moderately high prior can fall sharply. Current prior ${formatPct(s.prior, 0)} collapses to ${formatPct(s.post)} — not a linear haircut in probability. Log-odds still move by a constant ${s.bits.toFixed(2)} bits per update; the convexity is an artifact of the probability scale.`;
         } else if (s.prior >= 0.7 && s.effectiveLR > 1.02) {
           cls = "ok";
           title = "High-prior confirming evidence";
@@ -483,7 +580,7 @@
         } else if (s.effectiveLR > 1.02) {
           cls = "info";
           title = "Concave confirming update";
-          body = `λⁿ &gt; 1 pulls the posterior above the identity. The curve is concave, so the same likelihood ratio moves a mid prior more in probability points than a prior already close to 1. Try the High-prior confirm preset to see diminishing returns.`;
+          body = `λⁿ > 1 pulls the posterior above the identity. The curve is concave, so the same likelihood ratio moves a mid prior more in probability points than a prior already close to 1. Try the High-prior confirm preset to see diminishing returns.`;
         } else {
           cls = "neutral";
           title = "Uninformative evidence";
@@ -547,6 +644,82 @@
         .map((t) => `<span style="background:${mixRgb(LOW, HIGH, t)}"></span>`).join("");
 
       render();
+    })();
+  </script>
+  <script>
+    (() => {
+      const V = {
+        m180: { prior: 85, lr: 1.15, n: 180, mix: 0.53, fwd: 0.75, h: 36 },
+        m24: { prior: 20, lr: 1.25, n: 24, mix: 0.65, fwd: 0.75, h: 24 },
+      };
+      const $ = (id) => document.getElementById(id);
+      const ids = ["tlPrior", "tlLR", "tlN", "tlMix", "tlFwdMix", "tlH"];
+      const keys = ["prior", "lr", "n", "mix", "fwd", "h"];
+      // Evenly interleave confirming months so the path is smooth (Bresenham).
+      function path(p0, lr, months, share) {
+        let lo = Math.log(p0 / (1 - p0)), acc = 0, out = [];
+        const step = Math.log(lr);
+        for (let i = 1; i <= months; i++) {
+          const before = Math.round(acc); acc += share;
+          lo += (Math.round(acc) > before ? 1 : -1) * step;
+          lo = Math.max(-30, Math.min(30, lo));
+          out.push(1 / (1 + Math.exp(-lo)));
+        }
+        return out;
+      }
+      const pct = (p) => (p * 100).toFixed(1) + "%";
+      function render() {
+        const s = {}; ids.forEach((id, i) => (s[keys[i]] = +$(id).value));
+        $("tlPriorL").textContent = s.prior + "%";
+        $("tlLRL").textContent = "×" + s.lr.toFixed(2);
+        $("tlNL").textContent = s.n + " months (" + (s.n / 12).toFixed(1) + " yrs)";
+        $("tlMixL").textContent = Math.round(s.mix * 100) + "% confirming";
+        $("tlFwdMixL").textContent = Math.round(s.fwd * 100) + "% / " + Math.round((1 - s.fwd) * 100) + "%";
+        $("tlHL").textContent = s.h + " months";
+        const p0 = s.prior / 100;
+        const hist = [p0].concat(path(p0, s.lr, s.n, s.mix));
+        const today = hist[hist.length - 1];
+        const up = [today].concat(path(today, s.lr, s.h, s.fwd));
+        const dn = [today].concat(path(today, s.lr, s.h, 1 - s.fwd));
+        const W = 720, H = 340, L = 44, R = 12, T = 14, B = 34, total = s.n + s.h;
+        const x = (i) => L + (i / total) * (W - L - R);
+        const y = (p) => T + (1 - p) * (H - T - B);
+        const line = (arr, off) => arr.map((p, i) => (i ? "L" : "M") + x(i + off).toFixed(1) + " " + y(p).toFixed(1)).join("");
+        let grid = "";
+        [0, 0.25, 0.5, 0.75, 1].forEach((g) => {
+          grid += `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="#2a3038"/><text x="${L - 6}" y="${y(g) + 4}" fill="#9a9a9a" font-size="11" text-anchor="end">${g * 100}%</text>`;
+        });
+        const yrs = Math.max(1, Math.round(total / 12 / 6));
+        for (let m = 0; m <= total; m += 12 * yrs) {
+          const lab = m - s.n === 0 ? "0" : ((m - s.n) / 12 > 0 ? "+" : "") + ((m - s.n) / 12).toFixed(0) + "y";
+          grid += `<text x="${x(m)}" y="${H - 14}" fill="#9a9a9a" font-size="11" text-anchor="middle">${lab}</text>`;
+        }
+        const tx = x(s.n);
+        $("tlChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Posterior over time">${grid}
+          <line x1="${tx}" x2="${tx}" y1="${T}" y2="${H - B}" stroke="#e6e6e6" stroke-dasharray="4 4"/>
+          <text x="${tx + 4}" y="${T + 12}" fill="#e6e6e6" font-size="11">today</text>
+          <path d="${line(hist, 0)}" fill="none" stroke="#4c8bf5" stroke-width="2.2"/>
+          <path d="${line(up, s.n)}" fill="none" stroke="#3fb950" stroke-width="2"/>
+          <path d="${line(dn, s.n)}" fill="none" stroke="#f85149" stroke-width="2"/>
+          <circle cx="${tx}" cy="${y(today)}" r="4" fill="#4c8bf5"/>
+          <text x="${W / 2}" y="${H - 1}" fill="#9a9a9a" font-size="11" text-anchor="middle">years relative to today (monthly updates)</text>
+        </svg>`;
+        $("tlStats").innerHTML = `<span style="color:#4c8bf5">History</span>: ${pct(p0)} → ${pct(today)} today. ` +
+          `<span style="color:#3fb950">Mostly confirming</span> (${Math.round(s.fwd * 100)}%): ${pct(up[up.length - 1])} after ${s.h} months. ` +
+          `<span style="color:#f85149">Mostly disconfirming</span> (${Math.round((1 - s.fwd) * 100)}% confirming): ${pct(dn[dn.length - 1])}. ` +
+          `Each month moves log-odds by ±${Math.log(s.lr).toFixed(3)}.`;
+        document.querySelectorAll("[data-tl]").forEach((b) => {
+          const v = V[b.dataset.tl];
+          b.setAttribute("aria-pressed", String(keys.every((k) => Math.abs(v[k] - s[k]) < 1e-9)));
+        });
+      }
+      function load(name) { const v = V[name]; ids.forEach((id, i) => ($(id).value = v[keys[i]])); render(); }
+      ids.forEach((id) => $(id).addEventListener("input", render));
+      document.querySelectorAll("[data-tl]").forEach((b) => b.addEventListener("click", () => {
+        load(b.dataset.tl);
+        if (b.dataset.jump) document.getElementById("timeline").scrollIntoView({ behavior: "smooth" });
+      }));
+      load(location.hash === "#m24" ? "m24" : "m180");
     })();
   </script>
 </body>
