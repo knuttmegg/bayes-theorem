@@ -184,9 +184,19 @@
       th, td { padding: 6px 8px; }
     }
 
-    .tl-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 18px; margin: 10px 0; }
-    .tl-controls label { display: block; }
-    .tl-controls input { width: 100%; }
+    .tl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+    .tl-panel { border: 1px solid #2a3038; border-radius: 10px; padding: 12px; min-width: 0; }
+    .tl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .tl-tag { font-weight: 700; color: var(--accent); }
+    .tl-title { flex: 1; min-width: 0; background: transparent; border: 1px solid #2a3038; border-radius: 6px; color: inherit; font: inherit; font-weight: 600; padding: 6px 8px; }
+    .tl-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 6px 0; }
+    .tl-controls label { display: block; font-size: 13px; }
+    .tl-controls input[type=range] { width: 100%; }
+    .tl-controls input[type=range]:disabled { opacity: 0.3; }
+    .tl-num { width: 72px; background: transparent; border: 1px solid #2a3038; border-radius: 5px; color: inherit; font: inherit; padding: 2px 4px; text-align: right; }
+    .tl-empty { height: 200px; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); border: 1px dashed #2a3038; border-radius: 8px; padding: 12px; }
+    @media (max-width: 800px) { .tl-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 420px) { .tl-controls { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -238,8 +248,8 @@
         <button type="button" class="pill" data-preset="rare">Rare-event test</button>
         <button type="button" class="pill" data-preset="confirm">High-prior confirm</button>
         <button type="button" class="pill" data-preset="disconfirm">Disconfirming hit</button>
-        <button type="button" class="pill" data-tl="m180" data-jump="1">Monthly updates over 15 years</button>
-        <button type="button" class="pill" data-tl="m24" data-jump="1">24 months (2 years)</button>
+        <button type="button" class="pill" data-tl="A" data-jump="1">Monthly updates over 15 years</button>
+        <button type="button" class="pill" data-tl="B" data-jump="1">24 months (2 years)</button>
       </div>
     </div>
 
@@ -303,31 +313,12 @@
 
     <h2 id="timeline">Monthly evidence paths</h2>
     <p class="caption">
-      Odds-form updating, one update per month: confirming months multiply the odds by LR,
-      disconfirming months divide by LR. History runs to the dashed <strong>today</strong> line;
-      after it, two forward paths show mostly confirming vs mostly disconfirming evidence.
+      Four independent scenarios. Odds-form updating, one update per month: confirming months multiply the odds by LR,
+      disconfirming months divide by LR. History runs to the dashed <strong>today</strong> line; after it the
+      <span style="color:#3fb950">green</span> path is mostly confirming and the <span style="color:#f85149">red</span> path mostly disconfirming.
+      Same 0–100% axis in every panel. Settings are saved in the URL, so you can share a scenario set.
     </p>
-    <div class="presets">
-      <span class="lbl">Views</span>
-      <button type="button" class="pill" data-tl="m180">Monthly updates over 15 years</button>
-      <button type="button" class="pill" data-tl="m24">24 months (2 years)</button>
-    </div>
-    <div class="tl-controls">
-      <label><span class="slider-row"><strong>Starting prior</strong><span id="tlPriorL"></span></span>
-        <input id="tlPrior" type="range" min="1" max="99" step="1" value="85" /></label>
-      <label><span class="slider-row"><strong>Likelihood ratio per month</strong><span id="tlLRL"></span></span>
-        <input id="tlLR" type="range" min="1.01" max="2" step="0.01" value="1.15" /></label>
-      <label><span class="slider-row"><strong>Monthly updates (history)</strong><span id="tlNL"></span></span>
-        <input id="tlN" type="range" min="6" max="240" step="1" value="180" /></label>
-      <label><span class="slider-row"><strong>Confirming share of history</strong><span id="tlMixL"></span></span>
-        <input id="tlMix" type="range" min="0" max="1" step="0.01" value="0.53" /></label>
-      <label><span class="slider-row"><strong>Forward paths: confirming share</strong><span id="tlFwdMixL"></span></span>
-        <input id="tlFwdMix" type="range" min="0.5" max="1" step="0.01" value="0.75" /></label>
-      <label><span class="slider-row"><strong>Months forward from today</strong><span id="tlHL"></span></span>
-        <input id="tlH" type="range" min="6" max="120" step="1" value="36" /></label>
-    </div>
-    <div class="chart-frame" id="tlChart"></div>
-    <p class="caption" id="tlStats"></p>
+    <div class="tl-grid" id="tlGrid"></div>
   </div>
 
   <script>
@@ -648,78 +639,135 @@
   </script>
   <script>
     (() => {
-      const V = {
-        m180: { prior: 85, lr: 1.15, n: 180, mix: 0.53, fwd: 0.75, h: 36 },
-        m24: { prior: 20, lr: 1.25, n: 24, mix: 0.65, fwd: 0.75, h: 24 },
+      const DEF = {
+        A: { t: "Scenario 1", n: null, prior: null, lr: null, mix: null, h: null, fwd: null },
+        B: { t: "Scenario 2", n: null, prior: null, lr: null, mix: null, h: null, fwd: null },
+        C: { t: "Scenario 3", n: null, prior: null, lr: null, mix: null, h: null, fwd: null },
+        D: { t: "Scenario 4", n: null, prior: null, lr: null, mix: null, h: null, fwd: null },
       };
-      const $ = (id) => document.getElementById(id);
-      const ids = ["tlPrior", "tlLR", "tlN", "tlMix", "tlFwdMix", "tlH"];
-      const keys = ["prior", "lr", "n", "mix", "fwd", "h"];
-      // Evenly interleave confirming months so the path is smooth (Bresenham).
+      const FILL = {
+        A: { t: "15 years monthly", n: 180, prior: 85, lr: 1.15, mix: 0.53, h: 36, fwd: 0.75 },
+        B: { t: "24 months", n: 24, prior: 20, lr: 1.25, mix: 0.65, h: 24, fwd: 0.75 },
+      };
+      const NUM = { A: 1, B: 2, C: 3, D: 4 };
+      const SL = [
+        ["n", "Months of history", 6, 240, 1],
+        ["prior", "Starting prior (%)", 1, 99, 1],
+        ["lr", "LR per month", 1.01, 2, 0.01],
+        ["mix", "Confirming share of history", 0, 1, 0.01],
+        ["h", "Months forward", 6, 120, 1],
+        ["fwd", "Forward paths: confirming share", 0.5, 1, 0.01],
+      ];
+      const state = {};
+      Object.keys(DEF).forEach((k) => (state[k] = { ...DEF[k] }));
+      try {
+        const m = location.hash.match(/tl=([^&]+)/);
+        if (m) { const o = JSON.parse(decodeURIComponent(m[1])); Object.keys(o).forEach((k) => { if (state[k]) Object.assign(state[k], o[k]); }); }
+      } catch (e) {}
+      function saveHash() {
+        const h = "tl=" + encodeURIComponent(JSON.stringify(state));
+        history.replaceState(null, "", "#" + h);
+      }
       function path(p0, lr, months, share) {
-        let lo = Math.log(p0 / (1 - p0)), acc = 0, out = [];
-        const step = Math.log(lr);
+        let lo = Math.log(p0 / (1 - p0)), acc = 0; const out = [], step = Math.log(lr);
         for (let i = 1; i <= months; i++) {
-          const before = Math.round(acc); acc += share;
-          lo += (Math.round(acc) > before ? 1 : -1) * step;
+          const b = Math.round(acc); acc += share;
+          lo += (Math.round(acc) > b ? 1 : -1) * step;
           lo = Math.max(-30, Math.min(30, lo));
           out.push(1 / (1 + Math.exp(-lo)));
         }
         return out;
       }
       const pct = (p) => (p * 100).toFixed(1) + "%";
-      function render() {
-        const s = {}; ids.forEach((id, i) => (s[keys[i]] = +$(id).value));
-        $("tlPriorL").textContent = s.prior + "%";
-        $("tlLRL").textContent = "×" + s.lr.toFixed(2);
-        $("tlNL").textContent = s.n + " months (" + (s.n / 12).toFixed(1) + " yrs)";
-        $("tlMixL").textContent = Math.round(s.mix * 100) + "% confirming";
-        $("tlFwdMixL").textContent = Math.round(s.fwd * 100) + "% / " + Math.round((1 - s.fwd) * 100) + "%";
-        $("tlHL").textContent = s.h + " months";
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """ }[c]));
+      function fmtUnused(k, v) {
+        if (k === "lr") return "×" + (+v).toFixed(2);
+        if (k === "prior") return v + "%";
+        if (k === "mix" || k === "fwd") return Math.round(v * 100) + "%";
+        return v + " mo";
+      }
+      const grid = document.getElementById("tlGrid");
+      Object.keys(DEF).forEach((k) => {
+        const d = document.createElement("div");
+        d.className = "tl-panel"; d.id = "tlPanel" + k;
+        d.innerHTML = `<div class="tl-head"><span class="tl-tag">${NUM[k]}</span>
+          <input class="tl-title" aria-label="Scenario ${NUM[k]} title" />
+          <button type="button" class="pill tl-reset">Reset</button></div>
+          <div class="tl-controls">${SL.map(([key, lab, mn, mx, st]) =>
+            `<label><span class="slider-row"><strong>${lab}</strong><input type="number" class="tl-num" data-n="${key}" min="${mn}" max="${mx}" step="${st}" inputmode="decimal" placeholder="—" /></span>
+             <input type="range" data-k="${key}" min="${mn}" max="${mx}" step="${st}" /></label>`).join("")}</div>
+          <div class="chart-frame tl-chart"></div><p class="caption tl-stats"></p>`;
+        grid.appendChild(d);
+        const title = d.querySelector(".tl-title");
+        title.addEventListener("input", () => { state[k].t = title.value; saveHash(); });
+        d.querySelectorAll("input[data-k]").forEach((inp) => inp.addEventListener("input", () => {
+          state[k][inp.dataset.k] = +inp.value; d.querySelector(`[data-n="${inp.dataset.k}"]`).value = inp.value; render(k); saveHash();
+        }));
+        d.querySelectorAll("input[data-n]").forEach((inp) => inp.addEventListener("input", () => {
+          const key = inp.dataset.n, v = inp.value === "" ? null : +inp.value;
+          const sl = SL.find((r) => r[0] === key);
+          state[k][key] = v === null || !Number.isFinite(v) || v < sl[2] || v > sl[3] ? null : v;
+          const r = d.querySelector(`[data-k="${key}"]`); r.disabled = state[k][key] === null;
+          if (state[k][key] !== null) r.value = state[k][key];
+          render(k); saveHash();
+        }));
+        d.querySelector(".tl-reset").addEventListener("click", () => { state[k] = { ...DEF[k] }; sync(k); saveHash(); });
+        sync(k);
+      });
+      function sync(k) {
+        const d = document.getElementById("tlPanel" + k);
+        d.querySelector(".tl-title").value = state[k].t;
+        d.querySelectorAll("input[data-k]").forEach((inp) => {
+          const v = state[k][inp.dataset.k]; inp.disabled = v === null || v === undefined;
+          inp.value = inp.disabled ? (+inp.min + +inp.max) / 2 : v;
+          d.querySelector(`[data-n="${inp.dataset.k}"]`).value = inp.disabled ? "" : v;
+        });
+        render(k);
+      }
+      function render(k) {
+        let s = state[k]; const d = document.getElementById("tlPanel" + k);
+        const ok = (v) => v !== null && v !== undefined && Number.isFinite(v);
+        if (!["n", "prior", "lr", "mix"].every((q) => ok(s[q]))) {
+          d.querySelector(".tl-chart").innerHTML = `<div class="tl-empty">Enter history, prior, LR and confirming share to draw the curve</div>`;
+          d.querySelector(".tl-stats").textContent = "No scenario yet.";
+          return;
+        }
+        const fwdOn = ok(s.h) && ok(s.fwd);
+        if (!fwdOn) s = { ...s, h: 0, fwd: 0.5 };
         const p0 = s.prior / 100;
-        const hist = [p0].concat(path(p0, s.lr, s.n, s.mix));
-        const today = hist[hist.length - 1];
+        const hist = [p0].concat(path(p0, s.lr, s.n, s.mix)), today = hist[hist.length - 1];
         const up = [today].concat(path(today, s.lr, s.h, s.fwd));
         const dn = [today].concat(path(today, s.lr, s.h, 1 - s.fwd));
-        const W = 720, H = 340, L = 44, R = 12, T = 14, B = 34, total = s.n + s.h;
-        const x = (i) => L + (i / total) * (W - L - R);
-        const y = (p) => T + (1 - p) * (H - T - B);
+        const W = 520, H = 280, L = 40, R = 10, T = 12, B = 30, total = s.n + s.h;
+        const x = (i) => L + (i / total) * (W - L - R), y = (p) => T + (1 - p) * (H - T - B);
         const line = (arr, off) => arr.map((p, i) => (i ? "L" : "M") + x(i + off).toFixed(1) + " " + y(p).toFixed(1)).join("");
-        let grid = "";
-        [0, 0.25, 0.5, 0.75, 1].forEach((g) => {
-          grid += `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="#2a3038"/><text x="${L - 6}" y="${y(g) + 4}" fill="#9a9a9a" font-size="11" text-anchor="end">${g * 100}%</text>`;
+        let g = "";
+        [0, 0.25, 0.5, 0.75, 1].forEach((v) => {
+          g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#2a3038"/><text x="${L - 5}" y="${y(v) + 4}" fill="#9a9a9a" font-size="11" text-anchor="end">${v * 100}%</text>`;
         });
-        const yrs = Math.max(1, Math.round(total / 12 / 6));
-        for (let m = 0; m <= total; m += 12 * yrs) {
-          const lab = m - s.n === 0 ? "0" : ((m - s.n) / 12 > 0 ? "+" : "") + ((m - s.n) / 12).toFixed(0) + "y";
-          grid += `<text x="${x(m)}" y="${H - 14}" fill="#9a9a9a" font-size="11" text-anchor="middle">${lab}</text>`;
+        const stepM = total > 120 ? 36 : total > 48 ? 12 : 6;
+        for (let m = s.n % stepM; m <= total; m += stepM) {
+          const r = m - s.n, lab = r === 0 ? "0" : (r > 0 ? "+" : "") + (stepM >= 12 ? r / 12 + "y" : r + "m");
+          g += `<text x="${x(m)}" y="${H - 12}" fill="#9a9a9a" font-size="11" text-anchor="middle">${lab}</text>`;
         }
         const tx = x(s.n);
-        $("tlChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Posterior over time">${grid}
+        d.querySelector(".tl-chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(s.t)} posterior over time">${g}
           <line x1="${tx}" x2="${tx}" y1="${T}" y2="${H - B}" stroke="#e6e6e6" stroke-dasharray="4 4"/>
-          <text x="${tx + 4}" y="${T + 12}" fill="#e6e6e6" font-size="11">today</text>
+          <text x="${tx + 4}" y="${T + 11}" fill="#e6e6e6" font-size="11">today</text>
           <path d="${line(hist, 0)}" fill="none" stroke="#4c8bf5" stroke-width="2.2"/>
           <path d="${line(up, s.n)}" fill="none" stroke="#3fb950" stroke-width="2"/>
           <path d="${line(dn, s.n)}" fill="none" stroke="#f85149" stroke-width="2"/>
           <circle cx="${tx}" cy="${y(today)}" r="4" fill="#4c8bf5"/>
-          <text x="${W / 2}" y="${H - 1}" fill="#9a9a9a" font-size="11" text-anchor="middle">years relative to today (monthly updates)</text>
-        </svg>`;
-        $("tlStats").innerHTML = `<span style="color:#4c8bf5">History</span>: ${pct(p0)} → ${pct(today)} today. ` +
-          `<span style="color:#3fb950">Mostly confirming</span> (${Math.round(s.fwd * 100)}%): ${pct(up[up.length - 1])} after ${s.h} months. ` +
-          `<span style="color:#f85149">Mostly disconfirming</span> (${Math.round((1 - s.fwd) * 100)}% confirming): ${pct(dn[dn.length - 1])}. ` +
-          `Each month moves log-odds by ±${Math.log(s.lr).toFixed(3)}.`;
-        document.querySelectorAll("[data-tl]").forEach((b) => {
-          const v = V[b.dataset.tl];
-          b.setAttribute("aria-pressed", String(keys.every((k) => Math.abs(v[k] - s[k]) < 1e-9)));
-        });
+          <text x="${(L + W - R) / 2}" y="${H - 1}" fill="#9a9a9a" font-size="10" text-anchor="middle">time relative to today (monthly updates)</text></svg>`;
+        if (!fwdOn) { d.querySelector(".tl-stats").innerHTML = `Start ${pct(p0)} → today ${pct(today)} · enter months forward and forward share for the paths`; d.querySelectorAll("svg path:not(:first-of-type)").forEach((e) => e.remove()); return; }
+        d.querySelector(".tl-stats").innerHTML = `Start ${pct(p0)} → today ${pct(today)} · ` +
+          `<span style="color:#3fb950">confirming</span> ${pct(up[up.length - 1])} · ` +
+          `<span style="color:#f85149">disconfirming</span> ${pct(dn[dn.length - 1])} after ${s.h} mo`;
       }
-      function load(name) { const v = V[name]; ids.forEach((id, i) => ($(id).value = v[keys[i]])); render(); }
-      ids.forEach((id) => $(id).addEventListener("input", render));
       document.querySelectorAll("[data-tl]").forEach((b) => b.addEventListener("click", () => {
-        load(b.dataset.tl);
-        if (b.dataset.jump) document.getElementById("timeline").scrollIntoView({ behavior: "smooth" });
+        const k = b.dataset.tl; state[k] = { ...FILL[k] }; sync(k); saveHash();
+        document.getElementById("tlPanel" + k).scrollIntoView({ behavior: "smooth", block: "start" });
       }));
-      load(location.hash === "#m24" ? "m24" : "m180");
     })();
   </script>
 </body>
